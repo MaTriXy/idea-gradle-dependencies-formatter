@@ -4,7 +4,6 @@ import static com.github.platan.idea.dependencies.maven.MavenDependencyBuilder.a
 
 import com.github.platan.idea.dependencies.gradle.Dependency
 import com.github.platan.idea.dependencies.gradle.Exclusion
-import com.google.common.base.Optional
 import spock.lang.Specification
 
 class MavenToGradleMapperTest extends Specification {
@@ -34,8 +33,8 @@ class MavenToGradleMapperTest extends Specification {
         !dependency.exclusions
     }
 
-    private aDependency(String group, String name, String version, String configuration, List<Exclusion> exclusions) {
-        new Dependency(group, name, version, Optional.<String> absent(), configuration, exclusions, true, [:], false)
+    private static aDependency(String group, String name, String version, String configuration, List<Exclusion> exclusions) {
+        new Dependency(group, name, version, null, configuration, exclusions, true, [:], false)
     }
 
 }

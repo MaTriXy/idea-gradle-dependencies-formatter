@@ -1,29 +1,23 @@
 package com.github.platan.idea.dependencies.gradle;
 
-import static com.google.common.collect.Iterables.transform;
-
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 
 public class GradleDependenciesSerializerImpl implements GradleDependenciesSerializer {
 
-    private static final String NEW_LINE = System.getProperty("line.separator");
+    // https://github.com/platan/idea-gradle-dependencies-formatter/issues/3
+    // We should use \n as a new line separator in texts passed to a editor
+    // See: http://www.jetbrains.org/intellij/sdk/docs/basics/architectural_overview/documents.html
+    private static final char NEW_LINE = '\n';
     private static final Joiner NEW_LINE_JOINER = Joiner.on(NEW_LINE);
-    private static final Joiner COMMA_JOINER = Joiner.on(", ");
-    private static final Function<Map.Entry<String, String>, String> EXTRA_OPTION_FORMATTER =
-            new Function<Map.Entry<String, String>, String>() {
-                @Nullable
-                @Override
-                public String apply(Map.Entry<String, String> extraOption) {
-                    return String.format("%s = %s (%s is not supported)", extraOption.getKey(), extraOption.getValue(), extraOption
-                            .getKey());
-                }
-            };
+    private static final String COMMA_SPACE = ", ";
     private static final Function<Dependency, String> FORMAT_GRADLE_DEPENDENCY = new Function<Dependency, String>() {
         @NotNull
         @Override
@@ -36,8 +30,8 @@ public class GradleDependenciesSerializerImpl implements GradleDependenciesSeria
                 if (dependency.isOptional()) {
                     comment += prepareComment(comment, "optional = true (optional is not supported for dependency with closure)");
                 }
-                return String.format("%s(%s) {%s%n%s}",
-                        dependency.getConfiguration(), toStringNotation(dependency), comment, getClosureContent(dependency));
+                return String.format("%s(%s) {%s%s%s}",
+                        dependency.getConfiguration(), toStringNotation(dependency), comment, NEW_LINE, getClosureContent(dependency));
             }
             String optional = dependency.isOptional() ? ", optional" : "";
             return String.format("%s %s%s%s", dependency.getConfiguration(), toStringNotation(dependency), optional, comment);
@@ -48,7 +42,11 @@ public class GradleDependenciesSerializerImpl implements GradleDependenciesSeria
         }
 
         private String createComment(Map<String, String> extraOptions) {
-            return String.format(" // %s", COMMA_JOINER.join(transform(extraOptions.entrySet(), EXTRA_OPTION_FORMATTER)));
+            String comment = extraOptions.entrySet().stream()
+                    .map(extraOption ->
+                            String.format("%s = %s (%s is not supported)", extraOption.getKey(), extraOption.getValue(), extraOption.getKey()))
+                    .collect(joining(COMMA_SPACE));
+            return String.format(" // %s", comment);
         }
 
         private boolean useClosure(Dependency dependency) {
@@ -94,6 +92,6 @@ public class GradleDependenciesSerializerImpl implements GradleDependenciesSeria
     @NotNull
     @Override
     public String serialize(@NotNull List<Dependency> dependencies) {
-        return NEW_LINE_JOINER.join(transform(dependencies, FORMAT_GRADLE_DEPENDENCY));
+        return NEW_LINE_JOINER.join(dependencies.stream().map(FORMAT_GRADLE_DEPENDENCY).collect(toList()));
     }
 }

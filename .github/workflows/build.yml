@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 8 * * *' # every day 8am
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - java: 11
+            idea: 2020.2.4
+            kotlin: 1.3.60
+            coveralls: true
+          - java: 11
+            idea: 2020.3.4
+            kotlin: 1.4.21
+          - java: 11
+            idea: 2021.1.3
+            kotlin: 1.4.32
+          - java: 11
+            idea: 2021.2.3
+            kotlin: 1.5.31
+            verify_plugin: true
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }}
+      - name: Build with Gradle
+        run: ./gradlew -P ideaVersion=${{ matrix.idea }} -P kotlinVersion=${{ matrix.kotlin }} build
+      - name: Coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        run: if [ "${{ matrix.coveralls }}" == "true" ]; then ./gradlew -P ideaVersion=${{ matrix.idea }} -P kotlinVersion=${{ matrix.kotlin }} cobertura coveralls; fi
+      - name: IntelliJ Plugin Verifier
+        if: ${{ matrix.verify_plugin }}
+        run: ./gradlew runPluginVerifier

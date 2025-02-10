@@ -17,8 +17,22 @@ object DependencyUtil {
                 continue
             }
             val key = namedArgument.label!!.text
-            var value = removeQuotesAndUnescape(expression)
-            map.put(key, value)
+            val value = removeQuotesAndUnescape(expression)
+            map[key] = value
+        }
+        return map
+    }
+
+    @JvmStatic
+    fun toMapWithPsiElementValues(namedArguments: Array<GrNamedArgument>): Map<String, PsiElement> {
+        val map = LinkedHashMap<String, PsiElement>()
+        for (namedArgument in namedArguments) {
+            val expression = namedArgument.expression
+            if (namedArgument.label == null || expression == null) {
+                continue
+            }
+            val key = namedArgument.label!!.text
+            map[key] = expression
         }
         return map
     }

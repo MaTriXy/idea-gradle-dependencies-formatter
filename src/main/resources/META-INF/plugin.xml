@@ -1,4 +1,4 @@
-<idea-plugin version="2">
+<idea-plugin>
     <id>com.github.platan.gradle-dependencies-formatter</id>
     <name>Gradle Dependencies Formatter</name>
     <version>@plugin.version@</version>
@@ -15,6 +15,20 @@
     </description>
     <change-notes><![CDATA[
       <p>
+        <b>0.6.1</b>
+        <ul>
+            <li>(bugfix) fixed NPE in `StringNotationToMapNotationIntention` <a href="https://github.com/platan/idea-gradle-dependencies-formatter/issues/76">#76</a></li>
+        </ul>
+        <b>0.6.0</b>
+        <ul>
+            <li>(feature) Sort dependencies in allprojects block and in subprojects block <a href="https://github.com/platan/idea-gradle-dependencies-formatter/issues/39">#39</a></li>
+            <li>(feature) Change notation type on multiple dependencies at once <a href="https://github.com/platan/idea-gradle-dependencies-formatter/issues/38">#38</a></li>
+            <li>(bugfix) Convert a map notation that uses a variable to a string notation properly <a href="https://github.com/platan/idea-gradle-dependencies-formatter/issues/42">#42</a></li>
+        </ul>
+        <b>0.5.3</b>
+        <ul>
+            <li>(bugfix) Unable to paste multiple Maven dependencies at once <a href="https://github.com/platan/idea-gradle-dependencies-formatter/issues/3">#3</a></li>
+        </ul>
         <b>0.5.2</b>
         <ul>
             <li>(bugfix) fixed NPE in `MapNotationToStringNotationIntention#getElementPredicate`</li>
@@ -48,8 +62,9 @@
       </p>
     ]]>
     </change-notes>
-    <idea-version since-build="139.0"/>
-    <depends>org.jetbrains.plugins.gradle</depends>
+    <idea-version since-build="193"/>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.intellij.groovy</depends>
     <extensions defaultExtensionNs="com.intellij">
         <copyPastePreProcessor implementation="com.github.platan.idea.dependencies.MavenToGradleDependenciesCopyPasteProcessor" order="first"/>
 
@@ -62,26 +77,9 @@
             <className>com.github.platan.idea.dependencies.intentions.MapNotationToStringNotationIntention</className>
         </intentionAction>
     </extensions>
-    <application-components>
-        <component>
-            <implementation-class>com.github.platan.idea.dependencies.MavenToGradleConverter</implementation-class>
-        </component>
-        <component>
-            <interface-class>com.github.platan.idea.dependencies.gradle.GradleDependenciesSerializer</interface-class>
-            <implementation-class>com.github.platan.idea.dependencies.gradle.GradleDependenciesSerializerImpl</implementation-class>
-        </component>
-        <component>
-            <interface-class>com.github.platan.idea.dependencies.maven.MavenToGradleMapper</interface-class>
-            <implementation-class>com.github.platan.idea.dependencies.maven.MavenToGradleMapperImpl</implementation-class>
-        </component>
-        <component>
-            <interface-class>com.github.platan.idea.dependencies.maven.MavenDependenciesDeserializer</interface-class>
-            <implementation-class>com.github.platan.idea.dependencies.maven.MavenDependenciesDeserializerImpl</implementation-class>
-        </component>
-    </application-components>
     <actions>
         <action class="com.github.platan.idea.dependencies.sort.SortDependenciesAction"
-                id="sortGradleDependenciesAction" text="Sort Gradle dependencies"
+                id="sortGradleDependenciesAction" text="Sort Gradle Dependencies"
                 description="Sort Gradle dependencies">
             <add-to-group group-id="CodeMenu" anchor="last"/>
         </action>

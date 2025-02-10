@@ -1,11 +1,5 @@
 package com.github.platan.idea.dependencies.gradle;
 
-import static com.google.common.collect.Iterables.transform;
-
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -13,40 +7,29 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
-public class Coordinate implements Comparable<Coordinate> {
-    private static final String NAME_KEY = "name";
-    private static final String GROUP_KEY = "group";
-    private static final String VERSION_KEY = "version";
-    private static final String CLASSIFIER_KEY = "classifier";
-    private static final String EXT_KEY = "ext";
-    private static final Set<String> ALL_KEYS = ImmutableSet.of(GROUP_KEY, NAME_KEY, VERSION_KEY, CLASSIFIER_KEY, EXT_KEY);
-    private static final Set<String> REQUIRED_KEYS = ImmutableSet.of(GROUP_KEY, NAME_KEY);
-    private static final Splitter ON_SEMICOLON_SPLITTER = Splitter.onPattern(":").limit(4);
-    private static final Joiner ON_COMMA_SPACE_JOINER = Joiner.on(", ");
-    private static final Comparator<Optional<String>> OPTIONAL_COMPARATOR = new NaturalAbsentFirstOptionalOrdering<String>();
-    private final Optional<String> group;
-    private final String name;
-    private final Optional<String> version;
-    private final Optional<String> classifier;
-    private final Optional<String> extension;
+import static java.util.stream.Collectors.joining;
 
-    public Coordinate(Optional<String> group, String name, Optional<String> version, Optional<String> classifier, Optional<String>
-            extension) {
-        this.group = group;
-        this.name = name;
-        this.version = version;
-        this.classifier = classifier;
-        this.extension = extension;
+public class Coordinate extends BaseCoordinate<String> implements Comparable<Coordinate> {
+    private static final ImmutableSet<String> ALL_KEYS = ImmutableSet.of(GROUP_KEY, NAME_KEY, VERSION_KEY, CLASSIFIER_KEY, EXT_KEY);
+    private static final ImmutableSet<String> REQUIRED_KEYS = ImmutableSet.of(GROUP_KEY, NAME_KEY);
+    private static final Splitter ON_SEMICOLON_SPLITTER = Splitter.onPattern(":").limit(4);
+    private static final String COMMA_SPACE = ", ";
+    private static final Comparator<String> COMPARATOR = new NaturalNullFirstOrdering<>();
+
+    public Coordinate(@Nullable String group, String name, @Nullable String version, @Nullable String classifier,
+                      @Nullable String extension) {
+        super(group, name, version, classifier, extension);
     }
+
 
     public static Coordinate parse(String stringNotation) {
         Preconditions.checkArgument(!stringNotation.trim().isEmpty(), "Coordinate is empty!");
@@ -88,52 +71,8 @@ public class Coordinate implements Comparable<Coordinate> {
         return list.size() == index + 1;
     }
 
-    public Optional<String> getGroup() {
-        return group;
-    }
-
-
-    public String getName() {
-        return name;
-    }
-
-    public Optional<String> getVersion() {
-        return version;
-    }
-
-    public Optional<String> getClassifier() {
-        return classifier;
-    }
-
-    public Optional<String> getExtension() {
-        return extension;
-    }
-
     public String toMapNotation(String quote) {
-        return ON_COMMA_SPACE_JOINER.join(transform(toMap().entrySet(), new MapEntryToStringFunction(quote)));
-    }
-
-    public String toStringNotation() {
-        StringBuilder stringBuilder = new StringBuilder();
-        if (group.isPresent()) {
-            stringBuilder.append(group.get());
-        }
-        stringBuilder.append(':');
-        stringBuilder.append(name);
-        appendIfPresent(stringBuilder, ':', version);
-        if (!version.isPresent() && classifier.isPresent()) {
-            stringBuilder.append(':');
-        }
-        appendIfPresent(stringBuilder, ':', classifier);
-        appendIfPresent(stringBuilder, '@', extension);
-        return stringBuilder.toString();
-    }
-
-    private void appendIfPresent(StringBuilder stringBuilder, char separator, Optional<String> optionalValue) {
-        if (optionalValue.isPresent()) {
-            stringBuilder.append(separator);
-            stringBuilder.append(optionalValue.get());
-        }
+        return toMap().entrySet().stream().map(new MapEntryToStringFunction(quote)).collect(joining(COMMA_SPACE));
     }
 
     public static Coordinate fromMap(Map<String, String> map) {
@@ -156,79 +95,47 @@ public class Coordinate implements Comparable<Coordinate> {
     }
 
     private Map<String, String> toMap() {
-        Map<String, String> map = new LinkedHashMap<String, String>();
-        putIfPresent(map, group, GROUP_KEY);
+        Map<String, String> map = new LinkedHashMap<>();
+        putIfNotNull(map, group, GROUP_KEY);
         map.put(NAME_KEY, name);
-        putIfPresent(map, version, VERSION_KEY);
-        putIfPresent(map, classifier, CLASSIFIER_KEY);
-        putIfPresent(map, extension, EXT_KEY);
+        putIfNotNull(map, version, VERSION_KEY);
+        putIfNotNull(map, classifier, CLASSIFIER_KEY);
+        putIfNotNull(map, extension, EXT_KEY);
         return map;
     }
 
-    private void putIfPresent(Map<String, String> map, Optional<String> value, String key) {
-        if (value.isPresent()) {
-            map.put(key, value.get());
+    private void putIfNotNull(Map<String, String> map, String value, String key) {
+        if (value != null) {
+            map.put(key, value);
         }
     }
 
-    public static boolean isValidMap(Map<String, String> map) {
+    public static boolean isValidMap(Map<String, ?> map) {
         return Sets.difference(map.keySet(), ALL_KEYS).isEmpty() && map.keySet().containsAll(REQUIRED_KEYS);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(group, name, version, classifier, extension);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null || getClass() != obj.getClass()) {
-            return false;
-        }
-        final Coordinate other = (Coordinate) obj;
-        return Objects.equal(this.group, other.group)
-                && Objects.equal(this.name, other.name)
-                && Objects.equal(this.version, other.version)
-                && Objects.equal(this.classifier, other.classifier)
-                && Objects.equal(this.extension, other.extension);
-    }
-
-    @Override
-    public String toString() {
-        return "Coordinate{"
-                + "group=" + group
-                + ", name='" + name + '\''
-                + ", version=" + version
-                + ", classifier=" + classifier
-                + ", extension=" + extension
-                + '}';
     }
 
     @Override
     public int compareTo(Coordinate that) {
         return ComparisonChain.start()
-                .compare(this.group, that.group, OPTIONAL_COMPARATOR)
+                .compare(this.group, that.group, COMPARATOR)
                 .compare(this.name, that.name)
-                .compare(this.version, that.version, OPTIONAL_COMPARATOR)
-                .compare(this.classifier, that.classifier, OPTIONAL_COMPARATOR)
-                .compare(this.extension, that.extension, OPTIONAL_COMPARATOR)
+                .compare(this.version, that.version, COMPARATOR)
+                .compare(this.classifier, that.classifier, COMPARATOR)
+                .compare(this.extension, that.extension, COMPARATOR)
                 .result();
     }
 
-    private static final class NaturalAbsentFirstOptionalOrdering<T extends Comparable<? super T>> implements Comparator<Optional<T>> {
+    private static final class NaturalNullFirstOrdering<T extends Comparable<? super T>> implements Comparator<T> {
 
         @Override
-        public int compare(Optional<T> o1, Optional<T> o2) {
-            if (o1.isPresent() && o2.isPresent()) {
-                return o1.get().compareTo(o2.get());
+        public int compare(T o1, T o2) {
+            if (o1 != null && o2 != null) {
+                return o1.compareTo(o2);
             }
-            if (!o1.isPresent() && !o2.isPresent()) {
+            if (o1 == null && o2 == null) {
                 return 0;
             }
-            if (o1.isPresent()) {
+            if (o1 != null) {
                 return 1;
             } else {
                 return -1;
@@ -236,13 +143,14 @@ public class Coordinate implements Comparable<Coordinate> {
         }
     }
 
-    public static class CoordinateBuilder {
-        private Optional<String> group = Optional.absent();
-        private String name;
-        private Optional<String> version = Optional.absent();
-        private Optional<String> classifier = Optional.absent();
 
-        private Optional<String> extension = Optional.absent();
+    public static class CoordinateBuilder {
+        private String group = null;
+        private String name;
+        private String version = null;
+        private String classifier = null;
+
+        private String extension = null;
 
         private CoordinateBuilder() {
         }
@@ -254,27 +162,26 @@ public class Coordinate implements Comparable<Coordinate> {
         }
 
         public CoordinateBuilder withGroup(String group) {
-            this.group = optionalOf(group);
+            this.group = emptyToNull(group);
             return this;
         }
 
-        @NotNull
-        private Optional<String> optionalOf(String group) {
-            return group.isEmpty() ? Optional.<String>absent() : Optional.of(group);
+        private String emptyToNull(String value) {
+            return value == null || value.isEmpty() ? null : value;
         }
 
         public CoordinateBuilder withVersion(String version) {
-            this.version = optionalOf(version);
+            this.version = emptyToNull(version);
             return this;
         }
 
         public CoordinateBuilder withClassifier(String classifier) {
-            this.classifier = optionalOf(classifier);
+            this.classifier = emptyToNull(classifier);
             return this;
         }
 
         public CoordinateBuilder withExtension(String extension) {
-            this.extension = optionalOf(extension);
+            this.extension = emptyToNull(extension);
             return this;
         }
 

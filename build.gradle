@@ -5,8 +5,9 @@ buildscript {
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-        classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.1'
-        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.4"
+        classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.3'
+        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:3.3"
+        classpath 'com.vdurmont:semver4j:3.1.0'
     }
 }
 
@@ -16,51 +17,60 @@ plugins {
     id 'idea'
     id 'checkstyle'
     id 'codenarc'
-    id 'me.champeau.gradle.jmh' version '0.2.0'
-    id 'org.jetbrains.intellij' version '0.0.43'
-    id 'net.saliman.cobertura' version '2.4.0'
+    id 'me.champeau.gradle.jmh' version '0.5.3'
+    id 'org.jetbrains.intellij' version '1.9.0'
+    id 'net.saliman.cobertura' version '4.0.0'
+    id 'com.github.ben-manes.versions' version '0.51.0'
+    id 'net.ltgt.errorprone' version '2.0.2'
 }
 
 apply plugin: 'kotlin'
-if (JavaVersion.current().isJava8Compatible()) {
-    apply plugin: 'com.github.kt3k.coveralls'
-    apply plugin: 'org.sonarqube'
+apply plugin: 'com.github.kt3k.coveralls'
+apply plugin: 'org.sonarqube'
 
-    sonarqube {
-        properties {
-            property 'sonar.java.source', '1.6'
-        }
+sonarqube {
+    properties {
+        property 'sonar.java.source', '11'
     }
 }
 
 
 group 'com.github.platan'
-project.version = '0.5.3-SNAPSHOT'
 
 repositories {
     mavenCentral()
 }
+
 ext {
-    ideaVersion = project.hasProperty('ideaVersion') ? project.getProperty('ideaVersion') : ideaVersion
+    String ideaVersion = project.hasProperty('ideaVersion') ? project.getProperty('ideaVersion') : ideaVersion
 }
 
 intellij {
     version = ideaVersion
     type = 'IC'
-    plugins = ['Groovy', 'gradle', 'properties', 'junit']
+    plugins = ['Groovy', 'gradle', 'properties', 'junit'] + javaPlugin()
     downloadSources = false
     updateSinceUntilBuild = false
+    instrumentCode = false
 }
 
-String spockVersion() {
-    def ideaVersion = getIdeaMainVersion()
-    def ideaToGroovy = ['14.0': '2.2', '14.1': '2.3', '15.0': '2.3']
-    def groovyToSpock = ['2.0': '2.0', '2.1': '2.0', '2.2': '2.0', '2.3': '2.3', '2.4': '2.4']
-    def groovyForSpock = groovyToSpock.get(ideaToGroovy[ideaVersion], '2.4')
-    if (!groovyForSpock) {
-        throw new GradleException("Cannot resolve Spock version for Intellij IDEA version ${ideaVersion}!")
-    }
-    "1.0-groovy-${groovyForSpock}"
+runPluginVerifier {
+    ideVersions = ["IC-2019.3.5",
+                   "IC-2020.1.4",
+                   "IC-2020.2.4",
+                   "IC-2020.3.1"]
+}
+
+publishPlugin {
+    token = project.hasProperty('publishToken') ? project['publishToken'] : null
+    channels = project.hasProperty('publishChannels') ? [project['publishChannels']] : ['developer']
+}
+
+import com.vdurmont.semver4j.Semver
+
+List<String> javaPlugin() {
+    def ideaMainVersion = getIdeaMainVersion()
+    ideaVersion == 'LATEST-EAP-SNAPSHOT' || new Semver(ideaMainVersion, Semver.SemverType.LOOSE).isGreaterThanOrEqualTo('2019.2') ? ['java'] : []
 }
 
 private String getIdeaMainVersion() {
@@ -79,12 +89,15 @@ private String getIdeaMainVersion() {
 
 dependencies {
     compile files("src/main/resources")
+    compile 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
+    compile 'com.sun.xml.bind:jaxb-impl:3.0.2'
 
-    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+    compileOnly "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
 
-    testCompile("org.spockframework:spock-core:${spockVersion()}") {
+    testCompile("org.spockframework:spock-core:2.2-groovy-2.5") {
         exclude module: 'groovy-all'
     }
+    errorprone("com.google.errorprone:error_prone_core:2.19.1")
 }
 
 configurations {
@@ -110,13 +123,9 @@ checkstyle {
 }
 
 test {
-    jvmArgs '-XX:MaxPermSize=256m'
+    useJUnitPlatform()
 }
 
 sourceSets {
     main.java.srcDirs += 'src/main/kotlin'
-}
-
-task wrapper(type: Wrapper) {
-    gradleVersion = '2.11'
 }
